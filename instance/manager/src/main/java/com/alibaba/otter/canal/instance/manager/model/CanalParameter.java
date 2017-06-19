@@ -62,6 +62,10 @@ public class CanalParameter implements Serializable {
     private List<List<DataSourcing>> groupDbAddresses;                                               // 数据库链接信息，包含多组信息
     private String                   dbUsername;                                                     // 数据库用户
     private String                   dbPassword;                                                     // 数据库密码
+    
+    // rocketmq信息
+    private String  				 nameSvrAddresses;                                               // NameSvr; 
+    private String                   topic;                                                     	// topic
 
     // binlog链接信息
     private IndexMode                indexMode;
@@ -167,7 +171,9 @@ public class CanalParameter implements Serializable {
         /** 文件存储模式 */
         FILE,
         /** 混合模式，内存+文件 */
-        MIXED;
+        MIXED,
+        /** MQ存储模式  */
+        ROCKETMQ;
 
         public boolean isMemory() {
             return this.equals(StorageMode.MEMORY);
@@ -179,6 +185,10 @@ public class CanalParameter implements Serializable {
 
         public boolean isMixed() {
             return this.equals(StorageMode.MIXED);
+        }
+        
+        public boolean isRocketMQ() {
+            return this.equals(StorageMode.ROCKETMQ);
         }
 
     }
@@ -218,7 +228,9 @@ public class CanalParameter implements Serializable {
         /** oracle DB */
         ORACLE,
         /** 多库合并模式 */
-        GROUP;
+        GROUP,
+        
+        ROCKETMQ;
 
         public boolean isMysql() {
             return this.equals(SourcingType.MYSQL);
@@ -234,6 +246,10 @@ public class CanalParameter implements Serializable {
 
         public boolean isGroup() {
             return this.equals(SourcingType.GROUP);
+        }
+        
+        public boolean isRocketMQ() {
+            return this.equals(SourcingType.ROCKETMQ);
         }
     }
 
@@ -859,7 +875,23 @@ public class CanalParameter implements Serializable {
         this.blackFilter = blackFilter;
     }
 
-    public String toString() {
+    public void setNameSvrAddresses(String nameSvrAddresses) {
+		this.nameSvrAddresses = nameSvrAddresses;
+	}
+
+	public String getNameSvrAddresses() {
+		return nameSvrAddresses;
+	}
+
+	public String getTopic() {
+		return topic;
+	}
+
+	public void setTopic(String topic) {
+		this.topic = topic;
+	}
+
+	public String toString() {
         return ToStringBuilder.reflectionToString(this, CanalToStringStyle.DEFAULT_STYLE);
     }
 }

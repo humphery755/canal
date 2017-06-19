@@ -6,7 +6,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import com.alibaba.otter.canal.parse.index.*;
 import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,6 +37,12 @@ import com.alibaba.otter.canal.parse.inbound.AbstractEventParser;
 import com.alibaba.otter.canal.parse.inbound.group.GroupEventParser;
 import com.alibaba.otter.canal.parse.inbound.mysql.LocalBinlogEventParser;
 import com.alibaba.otter.canal.parse.inbound.mysql.MysqlEventParser;
+import com.alibaba.otter.canal.parse.index.CanalLogPositionManager;
+import com.alibaba.otter.canal.parse.index.FailbackLogPositionManager;
+import com.alibaba.otter.canal.parse.index.MemoryLogPositionManager;
+import com.alibaba.otter.canal.parse.index.MetaLogPositionManager;
+import com.alibaba.otter.canal.parse.index.PeriodMixedLogPositionManager;
+import com.alibaba.otter.canal.parse.index.ZooKeeperLogPositionManager;
 import com.alibaba.otter.canal.parse.support.AuthenticationInfo;
 import com.alibaba.otter.canal.protocol.position.EntryPosition;
 import com.alibaba.otter.canal.sink.entry.EntryEventSink;
@@ -45,6 +50,7 @@ import com.alibaba.otter.canal.sink.entry.group.GroupEventSink;
 import com.alibaba.otter.canal.store.AbstractCanalStoreScavenge;
 import com.alibaba.otter.canal.store.memory.MemoryEventStoreWithBuffer;
 import com.alibaba.otter.canal.store.model.BatchMode;
+import com.alibaba.otter.canal.store.rocketmq.RocketMQEventStore;
 
 /**
  * 单个canal实例，比如一个destination会独立一个实例
@@ -125,7 +131,17 @@ public class CanalInstanceWithManager extends AbstractCanalInstance {
     protected void initEventStore() {
         logger.info("init eventStore begin...");
         StorageMode mode = parameters.getStorageMode();
-        if (mode.isMemory()) {
+        // 增加RocketMQ EventStore实现
+        if(parameters.getSourcingType().isRocketMQ()){
+        	RocketMQEventStore mqEventStore = new RocketMQEventStore();
+        	mqEventStore.setPipelineId(2l);
+        	mqEventStore.setTopic(parameters.getTopic());
+        	mqEventStore.setNameSvrAddresses(parameters.getNameSvrAddresses());
+        	//数据源类型是mysql时，则提供producer存储至mq
+        	mqEventStore.setProducer(mode.isRocketMQ());
+        	mqEventStore.setConsumer(true);
+            eventStore = mqEventStore;
+        }else if (mode.isMemory()) {
             MemoryEventStoreWithBuffer memoryEventStore = new MemoryEventStoreWithBuffer();
             memoryEventStore.setBufferSize(parameters.getMemoryStorageBufferSize());
             memoryEventStore.setBufferMemUnit(parameters.getMemoryStorageBufferMemUnit());

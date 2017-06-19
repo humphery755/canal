@@ -26,6 +26,11 @@
 			<artifactId>canal.meta</artifactId>
 			<version>${project.version}</version>
 		</dependency>
+		<dependency>
+			<groupId>org.apache.rocketmq</groupId>
+			<artifactId>rocketmq-client</artifactId>
+			<version>4.1.0-incubating-SNAPSHOT</version>
+		</dependency>
 		<!-- test dependency -->
 		<dependency>
 			<groupId>junit</groupId>
