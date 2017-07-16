@@ -50,6 +50,7 @@ import com.alibaba.otter.canal.sink.entry.group.GroupEventSink;
 import com.alibaba.otter.canal.store.AbstractCanalStoreScavenge;
 import com.alibaba.otter.canal.store.memory.MemoryEventStoreWithBuffer;
 import com.alibaba.otter.canal.store.model.BatchMode;
+import com.alibaba.otter.canal.store.rocketmq.RocketMQEventStore;
 
 /**
  * 单个canal实例，比如一个destination会独立一个实例
@@ -130,7 +131,17 @@ public class CanalInstanceWithManager extends AbstractCanalInstance {
     protected void initEventStore() {
         logger.info("init eventStore begin...");
         StorageMode mode = parameters.getStorageMode();
-        if (mode.isMemory()) {
+     // 增加RocketMQ EventStore实现  humphery.yu@gmail.com by ...
+        if(parameters.getSourcingType().isRocketMQ()){
+            RocketMQEventStore mqEventStore = new RocketMQEventStore();
+            mqEventStore.setPipelineId(2l);
+            mqEventStore.setTopic(parameters.getTopic());
+            mqEventStore.setNameSvrAddresses(parameters.getNameSvrAddresses());
+            //数据源类型是mysql时，则提供producer存储至mq
+            mqEventStore.setProducer(mode.isRocketMQ());
+            mqEventStore.setConsumer(true);
+            eventStore = mqEventStore;
+        } else if (mode.isMemory()) {
             MemoryEventStoreWithBuffer memoryEventStore = new MemoryEventStoreWithBuffer();
             memoryEventStore.setBufferSize(parameters.getMemoryStorageBufferSize());
             memoryEventStore.setBufferMemUnit(parameters.getMemoryStorageBufferMemUnit());

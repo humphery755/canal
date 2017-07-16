@@ -63,6 +63,8 @@ public class CanalParameter implements Serializable {
     private String                   dbUsername;                                                     // 数据库用户
     private String                   dbPassword;                                                     // 数据库密码
 
+    private String                   nameSvrAddresses;                                              // ROCKET NAME_SVRADDRESS
+    private String                   topic;                                                         // ROCKET topic
     // binlog链接信息
     private IndexMode                indexMode;
     private List<String>             positions;                                                      // 数据库positions信息
@@ -167,7 +169,9 @@ public class CanalParameter implements Serializable {
         /** 文件存储模式 */
         FILE,
         /** 混合模式，内存+文件 */
-        MIXED;
+        MIXED,
+        
+        ROCKETMQ;
 
         public boolean isMemory() {
             return this.equals(StorageMode.MEMORY);
@@ -181,6 +185,9 @@ public class CanalParameter implements Serializable {
             return this.equals(StorageMode.MIXED);
         }
 
+        public boolean isRocketMQ() {
+            return this.equals(StorageMode.ROCKETMQ);
+        }
     }
 
     public static enum StorageScavengeMode {
@@ -218,7 +225,8 @@ public class CanalParameter implements Serializable {
         /** oracle DB */
         ORACLE,
         /** 多库合并模式 */
-        GROUP;
+        GROUP,
+        ROCKETMQ;
 
         public boolean isMysql() {
             return this.equals(SourcingType.MYSQL);
@@ -234,6 +242,9 @@ public class CanalParameter implements Serializable {
 
         public boolean isGroup() {
             return this.equals(SourcingType.GROUP);
+        }
+        public boolean isRocketMQ() {
+            return this.equals(SourcingType.ROCKETMQ);
         }
     }
 
@@ -857,6 +868,26 @@ public class CanalParameter implements Serializable {
 
     public void setBlackFilter(String blackFilter) {
         this.blackFilter = blackFilter;
+    }
+
+    
+    public String getNameSvrAddresses() {
+        return nameSvrAddresses;
+    }
+
+    
+    public void setNameSvrAddresses(String nameSvrAddresses) {
+        this.nameSvrAddresses = nameSvrAddresses;
+    }
+
+    
+    public String getTopic() {
+        return topic;
+    }
+
+    
+    public void setTopic(String topic) {
+        this.topic = topic;
     }
 
     public String toString() {

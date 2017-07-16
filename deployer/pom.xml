@@ -29,8 +29,9 @@
 					</archive>
 					<excludes>
 						<exclude>**/logback.xml</exclude>
+						<exclude>**/logback-test.xml</exclude>
 						<exclude>**/canal.properties</exclude>
-						<exclude>**/spring/**</exclude>
+						<!-- <exclude>**/spring/**</exclude> -->
 						<exclude>**/example/**</exclude>
 					</excludes>
 				</configuration>

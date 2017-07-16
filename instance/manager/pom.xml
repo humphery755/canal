@@ -16,5 +16,9 @@
 			<artifactId>canal.instance.core</artifactId>
 			<version>${project.version}</version>
 		</dependency>
+		<dependency>
+			<groupId>org.apache.rocketmq</groupId>
+			<artifactId>rocketmq-client</artifactId>
+		</dependency>
 	</dependencies>
 </project>
