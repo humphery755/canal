@@ -102,11 +102,15 @@ public class PeriodMixedLogPositionManager extends AbstractLogPositionManager {
     @Override
     public LogPosition getLatestIndexBy(String destination) {
         LogPosition logPosition = memoryLogPositionManager.getLatestIndexBy(destination);
-        if (logPosition == nullPosition) {
-            return null;
-        } else {
+        if (logPosition != null) {
             return logPosition;
         }
+        logPosition = zooKeeperLogPositionManager.getLatestIndexBy(destination);
+        // 这里保持和重构前的逻辑一致,重新添加到Memory中
+        if (logPosition != null) {
+            memoryLogPositionManager.persistLogPosition(destination, logPosition);
+        }
+        return logPosition;
     }
 
     @Override

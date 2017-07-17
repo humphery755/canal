@@ -3,6 +3,7 @@ package com.alibaba.otter.canal.sink.entry;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.LockSupport;
 
@@ -39,6 +40,7 @@ public class EntryEventSink extends AbstractCanalEventSink<List<CanalEntry.Entry
     protected long                 emptyTransctionThresold       = 8192;                                         // 超过1024个事务头，输出一个
     protected volatile long        lastEmptyTransactionTimestamp = 0L;
     protected AtomicLong           lastEmptyTransactionCount     = new AtomicLong(0L);
+    protected Set<Long>            filterLogfileOffset               = null;
 
     public EntryEventSink(){
         addHandler(new HeartBeatEntryEventHandler());
@@ -82,7 +84,15 @@ public class EntryEventSink extends AbstractCanalEventSink<List<CanalEntry.Entry
                 }
             }
         }
-
+        if(filterLogfileOffset!=null){
+            List _rowDatas = new ArrayList<CanalEntry.Entry>();
+            for (CanalEntry.Entry entry : (List<CanalEntry.Entry>)rowDatas) {
+                if (!filterLogfileOffset.contains(entry.getHeader().getLogfileOffset())) {
+                    _rowDatas.add(entry);
+                }
+            }
+            rowDatas = _rowDatas;
+        }
         return sinkData(rowDatas, remoteAddress);
     }
 
@@ -200,6 +210,10 @@ public class EntryEventSink extends AbstractCanalEventSink<List<CanalEntry.Entry
 
     public void setEmptyTransctionThresold(long emptyTransctionThresold) {
         this.emptyTransctionThresold = emptyTransctionThresold;
+    }
+
+    public void setFilterLogfileOffset(Set<Long> filterLogfileOffset) {
+        this.filterLogfileOffset = filterLogfileOffset;
     }
 
 }

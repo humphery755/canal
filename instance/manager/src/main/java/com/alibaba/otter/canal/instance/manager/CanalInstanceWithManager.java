@@ -4,9 +4,10 @@ import java.net.InetSocketAddress;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
-import com.alibaba.otter.canal.parse.index.*;
 import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,6 +39,12 @@ import com.alibaba.otter.canal.parse.inbound.AbstractEventParser;
 import com.alibaba.otter.canal.parse.inbound.group.GroupEventParser;
 import com.alibaba.otter.canal.parse.inbound.mysql.LocalBinlogEventParser;
 import com.alibaba.otter.canal.parse.inbound.mysql.MysqlEventParser;
+import com.alibaba.otter.canal.parse.index.CanalLogPositionManager;
+import com.alibaba.otter.canal.parse.index.FailbackLogPositionManager;
+import com.alibaba.otter.canal.parse.index.MemoryLogPositionManager;
+import com.alibaba.otter.canal.parse.index.MetaLogPositionManager;
+import com.alibaba.otter.canal.parse.index.PeriodMixedLogPositionManager;
+import com.alibaba.otter.canal.parse.index.ZooKeeperLogPositionManager;
 import com.alibaba.otter.canal.parse.support.AuthenticationInfo;
 import com.alibaba.otter.canal.protocol.position.EntryPosition;
 import com.alibaba.otter.canal.sink.entry.EntryEventSink;
@@ -45,6 +52,7 @@ import com.alibaba.otter.canal.sink.entry.group.GroupEventSink;
 import com.alibaba.otter.canal.store.AbstractCanalStoreScavenge;
 import com.alibaba.otter.canal.store.memory.MemoryEventStoreWithBuffer;
 import com.alibaba.otter.canal.store.model.BatchMode;
+import com.alibaba.otter.canal.store.rocketmq.RocketMQEventStore;
 
 /**
  * 单个canal实例，比如一个destination会独立一个实例
@@ -57,12 +65,23 @@ public class CanalInstanceWithManager extends AbstractCanalInstance {
     private static final Logger logger = LoggerFactory.getLogger(CanalInstanceWithManager.class);
     protected String            filter;                                                          // 过滤表达式
     protected CanalParameter    parameters;                                                      // 对应参数
+    private   Set<Long> filterLogfileOffset = null;
 
     public CanalInstanceWithManager(Canal canal, String filter){
         this.parameters = canal.getCanalParameter();
         this.canalId = canal.getId();
         this.destination = canal.getName();
         this.filter = filter;
+        
+        if (StringUtils.isNotEmpty(parameters.getBlackFilter())) {
+            if(StringUtils.startsWith(parameters.getBlackFilter(), "logfileOffset:")){
+                String str = StringUtils.substring(parameters.getBlackFilter(), 14);
+                filterLogfileOffset=new HashSet();
+                String tmp[]=StringUtils.split(str,",");
+                for(String s:tmp)filterLogfileOffset.add(Long.valueOf(s));
+                parameters.setBlackFilter(null);
+            }
+        }
 
         logger.info("init CanalInstance for {}-{} with parameters:{}", canalId, destination, parameters);
         // 初始化报警机制
@@ -125,7 +144,17 @@ public class CanalInstanceWithManager extends AbstractCanalInstance {
     protected void initEventStore() {
         logger.info("init eventStore begin...");
         StorageMode mode = parameters.getStorageMode();
-        if (mode.isMemory()) {
+     // 增加RocketMQ EventStore实现  humphery.yu@gmail.com by ...
+        if(parameters.getSourcingType().isRocketMQ()){
+            RocketMQEventStore mqEventStore = new RocketMQEventStore();
+            mqEventStore.setPipelineId(2l);
+            mqEventStore.setTopic(parameters.getTopic());
+            mqEventStore.setNameSvrAddresses(parameters.getNameSvrAddresses());
+            //数据源类型是mysql时，则提供producer存储至mq
+            mqEventStore.setProducer(mode.isRocketMQ());
+            mqEventStore.setConsumer(true);
+            eventStore = mqEventStore;
+        } else if (mode.isMemory()) {
             MemoryEventStoreWithBuffer memoryEventStore = new MemoryEventStoreWithBuffer();
             memoryEventStore.setBufferSize(parameters.getMemoryStorageBufferSize());
             memoryEventStore.setBufferMemUnit(parameters.getMemoryStorageBufferMemUnit());
@@ -159,7 +188,7 @@ public class CanalInstanceWithManager extends AbstractCanalInstance {
 
     protected void initEventSink() {
         logger.info("init eventSink begin...");
-
+        
         int groupSize = getGroupSize();
         if (groupSize <= 1) {
             eventSink = new EntryEventSink();
@@ -170,6 +199,7 @@ public class CanalInstanceWithManager extends AbstractCanalInstance {
         if (eventSink instanceof EntryEventSink) {
             ((EntryEventSink) eventSink).setFilterTransactionEntry(false);
             ((EntryEventSink) eventSink).setEventStore(getEventStore());
+            ((EntryEventSink) eventSink).setFilterLogfileOffset(filterLogfileOffset);
         }
         // if (StringUtils.isNotEmpty(filter)) {
         // AviaterRegexFilter aviaterFilter = new AviaterRegexFilter(filter);
