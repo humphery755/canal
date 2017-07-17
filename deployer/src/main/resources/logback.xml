@@ -73,6 +73,10 @@
         <level value="INFO" />  
         <appender-ref ref="CANAL-META" />
     </logger>
+    <logger name="com.alibaba.otter.canal.store.rocketmq.RocketMQEventStore" additivity="false">  
+        <level value="INFO" />  
+        <appender-ref ref="CANAL-ROOT" />
+    </logger>
     
 	<root level="INFO">
 		<!--<appender-ref ref="STDOUT"/>-->
