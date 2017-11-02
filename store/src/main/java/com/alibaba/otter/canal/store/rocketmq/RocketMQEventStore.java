@@ -1,3 +1,9 @@
+
+
+
+
+
+
 package com.alibaba.otter.canal.store.rocketmq;
 
 import java.net.InetSocketAddress;
