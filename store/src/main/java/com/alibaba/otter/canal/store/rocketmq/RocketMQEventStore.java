@@ -74,11 +74,12 @@ public class RocketMQEventStore extends AbstractCanalStoreScavenge implements Ca
     private ReentrantLock                               lock            = new ReentrantLock();
 
     private boolean                                     producer        = false;                                   // 初始化mqproducer开关
-    private boolean                                     consumer        = false;                                   // 初始化mqconsumer开关
     private final DefaultMQProducer                     mqproducer;
     private final DefaultMQPullConsumer                 mqconsumer;
-    private MessageQueue                                mqProducerqueue;
+    //private MessageQueue                                mqProducerqueue;
+    private int                                         consumerQueue=-1;
     private MessageQueue                                mqConsumerQueue;
+    private List<MessageQueue>                          mqProducerqueues;
 
     private String                                      nameSvrAddresses;                                          // mq
                                                                                                                    // name
@@ -111,19 +112,13 @@ public class RocketMQEventStore extends AbstractCanalStoreScavenge implements Ca
             }
             
             try {
-                List<MessageQueue> mqs = mqproducer.fetchPublishMessageQueues(topic);
-                for (MessageQueue _mq : mqs) {
-                    if (_mq.getQueueId() == 0) {
-                        mqProducerqueue = _mq;
-                        break;
-                    }
-                }
+                mqProducerqueues = mqproducer.fetchPublishMessageQueues(topic);
             } catch (MQClientException e) {
                 throw new CanalStoreException("rocketmq-producer don't be started.", e);
             }
             
         }
-        if (consumer) {
+        if (consumerQueue>=0) {
             mqconsumer.setConsumerGroup("CG_CANAL-" + destination + "-" + pipelineId);
             mqconsumer.setNamesrvAddr(nameSvrAddresses);
             mqconsumer.setConsumerPullTimeoutMillis(defaultConsumerPullTimeoutMillis);
@@ -137,7 +132,7 @@ public class RocketMQEventStore extends AbstractCanalStoreScavenge implements Ca
                 }
 
                 for (MessageQueue _mq : mqs) {
-                    if (_mq.getQueueId() == 0) {
+                    if (_mq.getQueueId() == consumerQueue) {
                         mqConsumerQueue = _mq;
                         break;
                     }
@@ -215,40 +210,24 @@ public class RocketMQEventStore extends AbstractCanalStoreScavenge implements Ca
         return tryPut(Arrays.asList(data));
     }
 
-    /**
-     * 执行具体的put操作
-     */
-    private void doPut(List<Event> data, long timeout) {
-        String tag, key;
-        List<Message> messages = new ArrayList(data.size());
-        for (Event event : data) {
-            tag = event.getLogIdentity().getSourceAddress() + "|" + event.getLogIdentity().getSlaveId() + "|"
-                  + event.getEntry().getHeader().getSchemaName() + "." + event.getEntry().getHeader().getTableName();
-
-            key = event.getEntry().getHeader().getLogfileName() + "-" + event.getEntry().getHeader().getLogfileOffset();
-            Message msg = new Message(topic, tag, key, event.getEntry().toByteArray());
-            messages.add(msg);
-            
-        }
-
-            
+    private void splitSend(MessageQueue mq,List<Message> messages,long timeout){
         try {
             ListSplitter splitter = new ListSplitter(messages);
             while (splitter.hasNext()) {
                 List<Message>  listItem = splitter.next();
-                SendResult sendResult = mqproducer.send(listItem, mqProducerqueue,timeout);
+                SendResult sendResult = mqproducer.send(listItem, mq,timeout);
                 if (sendResult == null) {
                     throw new CanalStoreException("mqproducer.send return null.");
                 }
                 switch(sendResult.getSendStatus()){
                     case SEND_OK:
                         break;
-                    case FLUSH_DISK_TIMEOUT:
-                        logger.warn("mqproducer.send status=FLUSH_DISK_TIMEOUT");
-                        break;
                     case FLUSH_SLAVE_TIMEOUT:
                         logger.warn("mqproducer.send status=FLUSH_SLAVE_TIMEOUT");
                         break;
+                    case FLUSH_DISK_TIMEOUT:
+                        logger.warn("mqproducer.send status=FLUSH_DISK_TIMEOUT");
+                        throw new CanalStoreException("mqproducer.send status=FLUSH_DISK_TIMEOUT");
                     case SLAVE_NOT_AVAILABLE:
                     default:
                         throw new CanalStoreException("mqproducer.send no supper status="+sendResult.getSendStatus());
@@ -258,37 +237,38 @@ public class RocketMQEventStore extends AbstractCanalStoreScavenge implements Ca
         } catch (Exception e) {
             throw new CanalStoreException("mqproducer.send failure.", e);
         }
-   
-        
-        /*for (Event event : data) {
+    }
+    /**
+     * 执行具体的put操作
+     */
+    private void doPut(List<Event> data, long timeout) {
+        String tag, key;
+        String table;
+        Map<Integer,List<Message>> msgMap = new HashMap();
+        for (Event event : data) {
+            table = event.getEntry().getHeader().getSchemaName() + "." + event.getEntry().getHeader().getTableName();
             tag = event.getLogIdentity().getSourceAddress() + "|" + event.getLogIdentity().getSlaveId() + "|"
-                  + event.getEntry().getHeader().getSchemaName() + "." + event.getEntry().getHeader().getTableName();
-
+                  + table;
+            
             key = event.getEntry().getHeader().getLogfileName() + "-" + event.getEntry().getHeader().getLogfileOffset();
             Message msg = new Message(topic, tag, key, event.getEntry().toByteArray());
+            int bucket = Math.abs(table.hashCode()%mqProducerqueues.size());
+            List<Message> messages = msgMap.get(bucket);
+            if(messages==null){
+                messages = new ArrayList(data.size());
+                msgMap.put(bucket, messages);
+            }
             messages.add(msg);
-            
         }
-        try {
-            if(messages.size()<=batchSize){
-                SendResult sendResult = mqproducer.send(messages, mqProducerqueue,timeout);
-                if (sendResult == null) {
-                    throw new CanalStoreException("mqproducer.send return null.");
-                }
-            }else{
-                ListSplitter splitter = new ListSplitter(messages,batchSize);
-                while (splitter.hasNext()) {
-                    List<Message>  listItem = splitter.next();
-                    SendResult sendResult = mqproducer.send(listItem, mqProducerqueue,timeout);
-                    if (sendResult == null) {
-                        throw new CanalStoreException("mqproducer.send return null.");
-                    }
+
+        for(Map.Entry<Integer,List<Message>> e:msgMap.entrySet()){
+            for (MessageQueue _mq : mqProducerqueues) {
+                if (_mq.getQueueId() == e.getKey()) {
+                    splitSend(_mq,e.getValue(),timeout);
+                    break;
                 }
             }
-            
-        } catch (Exception e) {
-            throw new CanalStoreException("mqproducer.send failure.", e);
-        }*/
+        }
     }
 
     public Events<Event> get(Position start, int batchSize) throws InterruptedException, CanalStoreException {
@@ -559,11 +539,11 @@ public class RocketMQEventStore extends AbstractCanalStoreScavenge implements Ca
     public void setProducer(boolean producer) {
         this.producer = producer;
     }
-
-    public void setConsumer(boolean consumer) {
-        this.consumer = consumer;
-    }
     
+    public void setConsumerQueue(int consumerQueue) {
+        this.consumerQueue = consumerQueue;
+    }
+
     public void setBatchPutSize(int batchSize) {
         this.batchPutSize = batchSize;
     }

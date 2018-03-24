@@ -152,7 +152,7 @@ public class CanalInstanceWithManager extends AbstractCanalInstance {
             mqEventStore.setNameSvrAddresses(parameters.getNameSvrAddresses());
             //数据源类型是mysql时，则提供producer存储至mq
             mqEventStore.setProducer(mode.isRocketMQ());
-            mqEventStore.setConsumer(true);
+            mqEventStore.setConsumerQueue(parameters.getConsumerQueue());
             eventStore = mqEventStore;
         } else if (mode.isMemory()) {
             MemoryEventStoreWithBuffer memoryEventStore = new MemoryEventStoreWithBuffer();

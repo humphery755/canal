@@ -65,6 +65,7 @@ public class CanalParameter implements Serializable {
 
     private String                   nameSvrAddresses;                                              // ROCKET NAME_SVRADDRESS
     private String                   topic;                                                         // ROCKET topic
+    private int                      consumerQueue;                                                 // ROCKET topic
     // binlog链接信息
     private IndexMode                indexMode;
     private List<String>             positions;                                                      // 数据库positions信息
@@ -717,6 +718,16 @@ public class CanalParameter implements Serializable {
     
     public void setTopic(String topic) {
         this.topic = topic;
+    }
+
+    
+    public int getConsumerQueue() {
+        return consumerQueue;
+    }
+
+    
+    public void setConsumerQueue(int consumerQueue) {
+        this.consumerQueue = consumerQueue;
     }
 
     public List<String> getPositions() {

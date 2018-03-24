@@ -102,4 +102,23 @@ public class AviaterFilterTest {
         boolean result = filter.filter(entry.build());
         Assert.assertEquals(true, result);
     }
+    
+    @Test
+    public void test_s() {
+        AviaterRegexFilter filter = new AviaterRegexFilter("segiods.tb_uhome_equipment,segiods_int.service_order_his,segiods_int.service_order_detail_his");
+        boolean result = filter.filter("segiods.tb_uhome_equipment");
+        Assert.assertEquals(true, result);
+
+        result = filter.filter("s1.t2");
+        Assert.assertEquals(false, result);
+
+        result = filter.filter("segiods_int.service_order_his");
+        Assert.assertEquals(true, result);
+
+        result = filter.filter("s1.t1,s2.t2");
+        Assert.assertEquals(false, result);
+
+        result = filter.filter("segiods_int.service_order_detail_his");
+        Assert.assertEquals(true, result);
+    }
 }

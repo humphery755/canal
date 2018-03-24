@@ -1,4 +1,3 @@
-
 <?xml version="1.0" encoding="UTF-8"?>
 <beans xmlns="http://www.springframework.org/schema/beans"
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:tx="http://www.springframework.org/schema/tx"
@@ -91,13 +90,14 @@
 		<property name="batchPutSize" value="${canal.instance.rocketmq.batchPutSize:1000}" />
 		<property name="sendMsgTimeout" value="${canal.instance.rocketmq.sendMsgTimeout:9000}" />
 		<property name="producer" value="true" />
+		<property name="consumerQueue" value="-1" />
 		<property name="destination" value="${canal.instance.destination}" />
 	</bean>
 	
 	<bean id="eventSink" class="com.alibaba.otter.canal.sink.entry.EntryEventSink">
 		<property name="eventStore" ref="eventStore" />
 		<property name="filter">
-			<bean class="com.alibaba.otter.canal.filter.aviater.AviaterRegexFilter" >
+			<bean class="com.alibaba.otter.canal.filter.aviater.TableColumnRegexFilter" >
 				<constructor-arg index="0" value="${canal.instance.filter.regex:.*\..*}" />
 			</bean>
 		</property>
@@ -122,7 +122,7 @@
 		
 		<!-- 解析过滤处理 -->
 		<property name="eventFilter">
-			<bean class="com.alibaba.otter.canal.filter.aviater.AviaterRegexFilter" >
+			<bean class="com.alibaba.otter.canal.filter.aviater.TableColumnRegexFilter" >
 				<constructor-arg index="0" value="${canal.instance.filter.regex:.*\..*}" />
 			</bean>
 		</property>
@@ -194,7 +194,8 @@
 				<property name="timestamp" value="${canal.instance.standby.timestamp}" />
 			</bean>
 		</property>
-		<property name="filterQueryDml" value="${canal.instance.filter.query.dml:false}" />
+		<property name="filterQueryDdl" value="${canal.instance.filter.query.ddl:false}" />
 		<property name="filterQueryDcl" value="${canal.instance.filter.query.dcl:false}" />
+		<property name="filterTableError" value="${canal.instance.filter.table.error:false}" />
 	</bean>
 </beans>

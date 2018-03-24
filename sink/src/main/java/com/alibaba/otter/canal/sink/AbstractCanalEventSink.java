@@ -5,6 +5,7 @@ import java.util.List;
 
 import com.alibaba.otter.canal.common.AbstractCanalLifeCycle;
 import com.alibaba.otter.canal.filter.CanalEventFilter;
+import com.alibaba.otter.canal.filter.aviater.TableColumnRegexFilter;
 
 /**
  * @author jianghang 2012-7-23 下午01:02:45
@@ -12,10 +13,14 @@ import com.alibaba.otter.canal.filter.CanalEventFilter;
 public abstract class AbstractCanalEventSink<T> extends AbstractCanalLifeCycle implements CanalEventSink<T> {
 
     protected CanalEventFilter                  filter;
+    protected boolean                           isEntry;
     protected List<CanalEventDownStreamHandler> handlers = new ArrayList<CanalEventDownStreamHandler>();
 
     public void setFilter(CanalEventFilter filter) {
         this.filter = filter;
+        if(filter instanceof TableColumnRegexFilter){
+            isEntry=true;
+        }
     }
 
     public void addHandler(CanalEventDownStreamHandler handler) {

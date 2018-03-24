@@ -138,19 +138,22 @@ public class EntryEventSink extends AbstractCanalEventSink<List<CanalEntry.Entry
 
     protected boolean doFilter(Event event) {
         if (filter != null && event.getEntry().getEntryType() == EntryType.ROWDATA) {
-            String name = getSchemaNameAndTableName(event.getEntry());
-            boolean need = filter.filter(name);
-            if (!need) {
-                logger.debug("filter name[{}] entry : {}:{}",
-                    name,
-                    event.getEntry().getHeader().getLogfileName(),
-                    event.getEntry().getHeader().getLogfileOffset());
+            boolean need;
+            if(isEntry){
+                need = filter.filter(event.getEntry());                
+            }else{
+                String name = getSchemaNameAndTableName(event.getEntry());
+                need = filter.filter(name);
+                if (!need) {
+                    logger.debug("filter name[{}] entry : {}:{}",
+                        name,
+                        event.getEntry().getHeader().getLogfileName(),
+                        event.getEntry().getHeader().getLogfileOffset());
+                }
             }
-
             return need;
-        } else {
-            return true;
-        }
+        } 
+        return true;
     }
 
     protected boolean doSink(List<Event> events) {
